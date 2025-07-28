@@ -15,7 +15,7 @@ const backBtn = document.getElementById("backButton");
 let currentQuote = "";
 let startTime, timerInterval;
 let isRunning = false;
-let correctWordsCount = 0;
+let correctCharCount = 0; // Tracks correct characters per full quote only
 
 // Sound effect for key press
 const keySound = new Audio(
@@ -115,18 +115,19 @@ inputEl.addEventListener("input", async () => {
     }
   }
 
+  // Only count correct characters if the full quote is typed correctly
   if (typed.trim() === currentQuote.trim()) {
-    const wordsInQuote = currentQuote.trim().split(/\s+/).length;
-    correctWordsCount += wordsInQuote;
+    const correctChars = currentQuote.trim().length;
+    correctCharCount += correctChars;
     await loadNextQuote();
   }
 });
 
 // Start the game
 async function startGame() {
-  clearInterval(timerInterval); // stop any previous timer
+  clearInterval(timerInterval);
   isRunning = true;
-  correctWordsCount = 0;
+  correctCharCount = 0;
   inputEl.value = "";
   inputEl.focus();
   timerEl.innerText = "60 s";
@@ -156,7 +157,8 @@ function endGame() {
 
   const elapsedSeconds = (Date.now() - startTime) / 1000;
   const safeElapsed = Math.max(elapsedSeconds, 1);
-  const wpm = Math.round(correctWordsCount / (safeElapsed / 60));
+
+  const wpm = Math.round(correctCharCount / 5 / (safeElapsed / 60));
 
   wpmDisplay.innerText = `WPM: ${wpm}`;
   timeDisplay.innerText = `Time: ${Math.min(60, Math.round(elapsedSeconds))} s`;
@@ -169,7 +171,7 @@ function endGame() {
 function resetGame() {
   clearInterval(timerInterval);
   isRunning = false;
-  correctWordsCount = 0;
+  correctCharCount = 0;
   inputEl.value = "";
   quoteEl.textContent = "Click Start to begin typing...";
   timerEl.innerText = "60 s";
