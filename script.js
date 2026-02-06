@@ -13,16 +13,16 @@ const backBtn = document.getElementById("backButton");
 
 // Game state variables
 let currentQuote = "";
-let startTime, timerInterval;
+let timerInterval;
 let isRunning = false;
-let correctCharCount = 0; // Tracks correct characters per full quote only
+let correctCharCount = 0;
+let timeRemaining = 60;
 
 // Sound effect for key press
 const keySound = new Audio(
-  "https://assets.mixkit.co/sfx/preview/mixkit-typewriter-key-1124.mp3"
+  "https://assets.mixkit.co/sfx/preview/mixkit-typewriter-key-1124.mp3",
 );
 
-// Local quote list
 const quotes = [
   "Type fast and keep your mind calm.",
   "Words build skill when you type daily.",
@@ -67,126 +67,125 @@ const quotes = [
   "Words typed well are wins each day.",
 ];
 
-// Get a random quote from the array
+// Get a random quote
 function getRandomQuote() {
-  const index = Math.floor(Math.random() * quotes.length);
-  return quotes[index];
+  return quotes[Math.floor(Math.random() * quotes.length)];
 }
 
-// Display each character in the quote as a separate <span>
+// Render quote with individual spans for coloring
 function renderQuote(text) {
   quoteEl.innerHTML = "";
-  for (let ch of text) {
+  text.split("").forEach((char) => {
     const span = document.createElement("span");
-    span.innerText = ch;
+    span.innerText = char;
     quoteEl.appendChild(span);
-  }
+  });
 }
 
-// Load the next quote and clear the input
-async function loadNextQuote() {
+// Load the next quote
+function loadNextQuote() {
   currentQuote = getRandomQuote();
   renderQuote(currentQuote);
   inputEl.value = "";
 }
 
-// Play key sound on key press
+// Play key sound
 inputEl.addEventListener("keydown", (e) => {
   if (isRunning && e.key.length === 1) {
     keySound.currentTime = 0;
-    keySound.play();
+    keySound.play().catch(() => {}); // Catch block prevents errors if browser blocks autoplay
   }
 });
 
-// Handle user input
-inputEl.addEventListener("input", async () => {
+// Handle user input logic
+inputEl.addEventListener("input", () => {
   if (!isRunning) return;
 
   const typed = inputEl.value;
   const spans = quoteEl.querySelectorAll("span");
+  let isAllCorrect = true;
 
-  for (let i = 0; i < spans.length; i++) {
-    if (typed[i] == null) {
-      spans[i].style.color = "black";
-    } else if (typed[i] === currentQuote[i]) {
-      spans[i].style.color = "green";
+  spans.forEach((span, index) => {
+    const char = typed[index];
+    if (char == null) {
+      span.style.color = "#6c757d"; // Muted color for untyped
+      isAllCorrect = false;
+    } else if (char === span.innerText) {
+      span.style.color = "#28a745"; // Green for correct
     } else {
-      spans[i].style.color = "red";
+      span.style.color = "#dc3545"; // Red for incorrect
+      isAllCorrect = false;
     }
-  }
+  });
 
-  // Only count correct characters if the full quote is typed correctly
-  if (typed.trim() === currentQuote.trim()) {
-    const correctChars = currentQuote.trim().length;
-    correctCharCount += correctChars;
-    await loadNextQuote();
+  // Load next quote when current one is finished correctly
+  if (typed.length >= currentQuote.length && isAllCorrect) {
+    correctCharCount += currentQuote.length;
+    loadNextQuote();
   }
 });
 
-// Start the game
-async function startGame() {
+// Start the game logic
+function startGame() {
   clearInterval(timerInterval);
   isRunning = true;
   correctCharCount = 0;
+  timeRemaining = 60;
+
+  inputEl.disabled = false;
   inputEl.value = "";
   inputEl.focus();
-  timerEl.innerText = "60 s";
+
+  timerEl.innerText = `${timeRemaining} s`;
   overlay.style.display = "none";
   resultScreen.style.display = "none";
 
-  await loadNextQuote();
-
-  startTime = Date.now();
+  loadNextQuote();
 
   timerInterval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    const remaining = 60 - elapsed;
+    timeRemaining--;
+    timerEl.innerText = `${timeRemaining} s`;
 
-    if (remaining <= 0) {
+    if (timeRemaining <= 0) {
       endGame();
-    } else {
-      timerEl.innerText = `${remaining} s`;
     }
   }, 1000);
 }
 
-// End the game and show results
+// End the game and calculate WPM
 function endGame() {
   clearInterval(timerInterval);
   isRunning = false;
+  inputEl.disabled = true;
 
-  const elapsedSeconds = (Date.now() - startTime) / 1000;
-  const safeElapsed = Math.max(elapsedSeconds, 1);
-
-  const wpm = Math.round(correctCharCount / 5 / (safeElapsed / 60));
+  // Standard WPM formula: (Characters / 5) / (Time in minutes)
+  const wpm = Math.round(correctCharCount / 5 / (60 / 60));
 
   wpmDisplay.innerText = `WPM: ${wpm}`;
-  timeDisplay.innerText = `Time: ${Math.min(60, Math.round(elapsedSeconds))} s`;
+  timeDisplay.innerText = `Time: 60 s`;
 
   overlay.style.display = "flex";
   resultScreen.style.display = "flex";
 }
 
-// Reset the game to clean initial state
+// Reset the game
 function resetGame() {
   clearInterval(timerInterval);
   isRunning = false;
   correctCharCount = 0;
   inputEl.value = "";
+  inputEl.disabled = false;
   quoteEl.textContent = "Click Start to begin typing...";
   timerEl.innerText = "60 s";
   overlay.style.display = "none";
   resultScreen.style.display = "none";
 }
 
-// Button event listeners
+// Listeners
 startBtn.addEventListener("click", startGame);
 resetBtn.addEventListener("click", resetGame);
 tryAgainBtn.addEventListener("click", startGame);
-backBtn.addEventListener("click", () => {
-  overlay.style.display = "none";
-  resultScreen.style.display = "none";
-});
+backBtn.addEventListener("click", resetGame);
 
-// Initialize UI
+// Initialize
 resetGame();
